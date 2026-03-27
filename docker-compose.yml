@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-chordsheets}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-chordsheets}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env.production}
+      PORT: 3000
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: chordsheets-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    networks:
+      - default
+      - caddy
+    labels:
+      caddy_0: chordsheets.co.uk, www.chordsheets.co.uk
+      caddy_0.reverse_proxy: "{{upstreams 80}}"
+
+volumes:
+  pgdata:
+
+networks:
+  caddy:
+    external: true
