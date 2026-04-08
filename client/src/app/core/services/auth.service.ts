@@ -41,9 +41,13 @@ export class AuthService {
     );
   }
 
-  logout() {
+  clearSession() {
     localStorage.removeItem(TOKEN_KEY);
     this.currentUser.set(null);
+  }
+
+  logout() {
+    this.clearSession();
     this.router.navigate(['/login']);
   }
 
@@ -54,7 +58,9 @@ export class AuthService {
         // Only clear the token if the server explicitly rejected it (401).
         // Network errors or other failures shouldn't discard a potentially valid token.
         if (err.status === 401) {
-          localStorage.removeItem(TOKEN_KEY);
+          this.clearSession();
+          this.router.navigate(['/login']);
+          return;
         }
         this.currentUser.set(null);
       },
