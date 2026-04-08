@@ -1,10 +1,58 @@
 import { Router, Response } from 'express';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { pool } from '../db/pool.js';
+import { config } from '../config.js';
 import { authMiddleware, AuthRequest } from '../middleware/auth.middleware.js';
+import { presenceManager } from '../presence.js';
+import { sharedMapRow } from './shared.routes.js';
 
 const router = Router();
+
+// SSE presence endpoint — registered before authMiddleware so we can
+// accept the JWT as a query parameter (EventSource doesn't support headers)
+router.get('/:id/presence', async (req: AuthRequest, res: Response) => {
+  const token = (req.query['token'] as string) || req.headers.authorization?.slice(7);
+  if (!token) {
+    res.status(401).json({ error: 'No token provided' });
+    return;
+  }
+
+  let userId: string;
+  try {
+    const decoded = jwt.verify(token, config.jwtSecret) as { sub: string };
+    userId = decoded.sub;
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+    return;
+  }
+
+  const result = await pool.query(
+    'SELECT id FROM chord_sheets WHERE id = $1 AND user_id = $2',
+    [req.params['id'], userId]
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Sheet not found' });
+    return;
+  }
+
+  const sheetId = result.rows[0].id;
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const editorId = presenceManager.addEditor(sheetId, res);
+
+  req.on('close', () => {
+    presenceManager.removeEditor(sheetId, editorId);
+  });
+});
 
 router.use(authMiddleware);
 
@@ -172,7 +220,13 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json(mapRow(result.rows[0]));
+    const row = result.rows[0];
+    res.json(mapRow(row));
+
+    // Notify live viewers if sheet is shared
+    if (row.share_token) {
+      presenceManager.notifyViewers(row.id, sharedMapRow(row));
+    }
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.errors });
@@ -225,6 +279,7 @@ router.delete('/:id/share', async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  presenceManager.disconnectAllViewers(req.params['id'] as string);
   res.json(mapRow(result.rows[0]));
 });
 

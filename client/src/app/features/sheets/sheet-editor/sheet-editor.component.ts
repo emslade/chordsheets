@@ -8,18 +8,24 @@ import { NashvilleGridComponent } from '../../../shared/components/nashville-gri
 import { parseContent, parseKey, parseNashvilleContent } from '@shared/music/theory';
 import { TUNINGS, isUniformTuning, getUniformTuningOffset } from '@shared/music/tunings';
 import { NOTE_NAMES_FLAT } from '@shared/music/constants';
-import type { TuningName, CustomChordDiagram } from '@shared/types/index';
+import type { TuningName, CustomChordDiagram, ViewerPresence } from '@shared/types/index';
 import { ChordDiagramEditorComponent } from '../../../shared/components/chord-diagram-editor/chord-diagram-editor.component';
+import { ViewerAvatarsComponent } from '../../../shared/components/viewer-avatars/viewer-avatars.component';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-sheet-editor',
   standalone: true,
-  imports: [FormsModule, ChordLineComponent, ChordDiagramEditorComponent, NashvilleGridComponent],
+  imports: [FormsModule, ChordLineComponent, ChordDiagramEditorComponent, NashvilleGridComponent, ViewerAvatarsComponent],
   template: `
     <div class="max-w-screen-2xl mx-auto px-4 py-8">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">{{ isEditing() ? 'Edit' : 'New' }} Chord Sheet</h1>
         <div class="flex items-center gap-3">
+          @if (viewers().length > 0) {
+            <app-viewer-avatars [viewers]="viewers()" />
+            <span class="text-sm text-gray-400">{{ viewers().length }} viewing</span>
+          }
           @if (isEditing()) {
             <span class="text-sm" [class]="saveStatus() === 'error' ? 'text-red-600' : 'text-gray-400'">
               {{ saveStatusText() }}
@@ -201,9 +207,11 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   isEditing = signal(false);
   saveStatus = signal<'saved' | 'unsaved' | 'saving' | 'error' | ''>('');
   saveStatusText = signal('');
+  viewers = signal<ViewerPresence[]>([]);
   private sheetId = '';
   private autoSave$ = new Subject<void>();
   private autoSaveSub?: Subscription;
+  private presenceSource?: EventSource;
   private loaded = false;
 
   capoFrets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -231,6 +239,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   constructor(
     private sheetService: ChordSheetService,
+    private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router,
   ) {}
@@ -255,6 +264,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
           this.content = sheet.content;
           this.nashvilleContent = sheet.nashvilleContent || '';
           this.loaded = true;
+          if (sheet.shareToken) {
+            this.connectPresence(id);
+          }
         },
         error: () => this.error.set('Failed to load sheet'),
       });
@@ -263,6 +275,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.autoSaveSub?.unsubscribe();
+    this.presenceSource?.close();
+  }
+
+  private connectPresence(sheetId: string) {
+    const token = this.authService.getToken();
+    if (!token) return;
+    this.presenceSource = new EventSource(`/api/sheets/${sheetId}/presence?token=${token}`);
+    this.presenceSource.addEventListener('presence', (e: MessageEvent) => {
+      const data = JSON.parse(e.data);
+      this.viewers.set(data.viewers);
+    });
   }
 
   onFieldChange() {

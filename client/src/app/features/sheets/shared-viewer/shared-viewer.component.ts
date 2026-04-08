@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ChordSheetService } from '../../../core/services/chord-sheet.service';
 import { ChordLineComponent } from '../../../shared/components/chord-line/chord-line.component';
@@ -158,10 +158,11 @@ import type { ChordSheet, Note, TuningName } from '@shared/types/index';
     </div>
   `,
 })
-export class SharedViewerComponent implements OnInit {
+export class SharedViewerComponent implements OnInit, OnDestroy {
   sheet = signal<ChordSheet | null>(null);
   loading = signal(true);
   notFound = signal(false);
+  private eventSource?: EventSource;
   semitones = signal(0);
   mode = signal<'chord' | 'roman'>('chord');
   viewTab = signal<'lyrics' | 'nashville'>('lyrics');
@@ -246,11 +247,24 @@ export class SharedViewerComponent implements OnInit {
       next: (sheet) => {
         this.sheet.set(sheet);
         this.loading.set(false);
+        this.connectSSE(token);
       },
       error: () => {
         this.notFound.set(true);
         this.loading.set(false);
       },
+    });
+  }
+
+  ngOnDestroy() {
+    this.eventSource?.close();
+  }
+
+  private connectSSE(token: string) {
+    this.eventSource = new EventSource(`/api/shared/${token}/events`);
+    this.eventSource.addEventListener('sheet-update', (e: MessageEvent) => {
+      const sheet = JSON.parse(e.data);
+      this.sheet.set(sheet);
     });
   }
 

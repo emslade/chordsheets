@@ -71,6 +71,13 @@ export interface CustomChordDiagram {
   baseFret: number;    // Usually 1
 }
 
+export interface ViewerPresence {
+  id: string;
+  animal: string;
+  name: string;
+  color: string;
+}
+
 export type Note = number; // 0-11 semitone index (C=0, C#=1, ... B=11)
 
 export interface Chord {
