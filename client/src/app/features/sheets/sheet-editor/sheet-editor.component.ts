@@ -1,6 +1,7 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject, Subscription, debounceTime } from 'rxjs';
 import { ChordSheetService } from '../../../core/services/chord-sheet.service';
 import { ChordLineComponent } from '../../../shared/components/chord-line/chord-line.component';
 import { NashvilleGridComponent } from '../../../shared/components/nashville-grid/nashville-grid.component';
@@ -18,12 +19,21 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
     <div class="max-w-screen-2xl mx-auto px-4 py-8">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">{{ isEditing() ? 'Edit' : 'New' }} Chord Sheet</h1>
-        <div class="flex gap-2">
-          <button (click)="goBack()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Cancel</button>
-          <button (click)="save()" [disabled]="saving()"
-            class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium">
-            {{ saving() ? 'Saving...' : 'Save' }}
+        <div class="flex items-center gap-3">
+          @if (isEditing()) {
+            <span class="text-sm" [class]="saveStatus() === 'error' ? 'text-red-600' : 'text-gray-400'">
+              {{ saveStatusText() }}
+            </span>
+          }
+          <button (click)="goBack()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            {{ isEditing() ? 'Done' : 'Cancel' }}
           </button>
+          @if (!isEditing()) {
+            <button (click)="save()" [disabled]="saving()"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium">
+              {{ saving() ? 'Saving...' : 'Save' }}
+            </button>
+          }
         </div>
       </div>
 
@@ -37,19 +47,19 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input type="text" [(ngModel)]="title" name="title" placeholder="Song title"
+              <input type="text" [(ngModel)]="title" (ngModelChange)="onFieldChange()" name="title" placeholder="Song title"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Artist</label>
-              <input type="text" [(ngModel)]="artist" name="artist" placeholder="Artist name"
+              <input type="text" [(ngModel)]="artist" (ngModelChange)="onFieldChange()" name="artist" placeholder="Artist name"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
           </div>
           <div class="grid grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Key</label>
-              <select [(ngModel)]="key" name="key"
+              <select [(ngModel)]="key" (ngModelChange)="onFieldChange()" name="key"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                 <option value="">None</option>
                 @for (k of keyOptions; track k) {
@@ -59,7 +69,7 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Capo</label>
-              <select [(ngModel)]="capo" name="capo"
+              <select [(ngModel)]="capo" (ngModelChange)="onFieldChange()" name="capo"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                 <option [ngValue]="0">None</option>
                 @for (fret of capoFrets; track fret) {
@@ -69,7 +79,7 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tuning</label>
-              <select [(ngModel)]="tuning" name="tuning"
+              <select [(ngModel)]="tuning" (ngModelChange)="onFieldChange()" name="tuning"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
                 @for (t of tuningOptions; track t.name) {
                   <option [ngValue]="t.name">{{ t.label }}</option>
@@ -79,7 +89,7 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
           </div>
           @if (showChordsAsShapesOption) {
             <label class="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" [(ngModel)]="chordsAsShapes" name="chordsAsShapes"
+              <input type="checkbox" [(ngModel)]="chordsAsShapes" (ngModelChange)="onFieldChange()" name="chordsAsShapes"
                 class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
               Chords written as shapes
               <span class="text-gray-400">(e.g. write D for a D shape even though it sounds as {{ shapesExampleNote }})</span>
@@ -130,14 +140,14 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
                 Content
                 <span class="font-normal text-gray-400 ml-1">Use [Am] or [iv] bracket notation for chords</span>
               </label>
-              <textarea [(ngModel)]="content" name="content" rows="24" placeholder="[Am]Imagine [C]all the [G]people&#10;[Am]Living [C]for to[G]day"
+              <textarea [(ngModel)]="content" (ngModelChange)="onFieldChange()" name="content" rows="24" placeholder="[Am]Imagine [C]all the [G]people&#10;[Am]Living [C]for to[G]day"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
             } @else {
               <label class="block text-sm font-medium text-gray-700 mb-1">
                 Nashville Chart
                 <span class="font-normal text-gray-400 ml-1">Use | for bars and . to split beats</span>
               </label>
-              <textarea [(ngModel)]="nashvilleContent" name="nashvilleContent" rows="24" placeholder="[Verse]&#10;| 1 | 4 | 1 | 5 |&#10;| 1 | 4 | 5 | 1 |&#10;&#10;[Chorus]&#10;| 4 | 5 | 1 | 6m |&#10;| 4 | 5 . 5/7 | 1 |"
+              <textarea [(ngModel)]="nashvilleContent" (ngModelChange)="onFieldChange()" name="nashvilleContent" rows="24" placeholder="[Verse]&#10;| 1 | 4 | 1 | 5 |&#10;| 1 | 4 | 5 | 1 |&#10;&#10;[Chorus]&#10;| 4 | 5 | 1 | 6m |&#10;| 4 | 5 . 5/7 | 1 |"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
             }
           </div>
@@ -174,7 +184,7 @@ import { ChordDiagramEditorComponent } from '../../../shared/components/chord-di
     </div>
   `,
 })
-export class SheetEditorComponent implements OnInit {
+export class SheetEditorComponent implements OnInit, OnDestroy {
   title = '';
   artist = '';
   key = '';
@@ -189,7 +199,12 @@ export class SheetEditorComponent implements OnInit {
   error = signal('');
   saving = signal(false);
   isEditing = signal(false);
+  saveStatus = signal<'saved' | 'unsaved' | 'saving' | 'error' | ''>('');
+  saveStatusText = signal('');
   private sheetId = '';
+  private autoSave$ = new Subject<void>();
+  private autoSaveSub?: Subscription;
+  private loaded = false;
 
   capoFrets = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   keyOptions = [
@@ -221,6 +236,8 @@ export class SheetEditorComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    this.autoSaveSub = this.autoSave$.pipe(debounceTime(1500)).subscribe(() => this.autoSave());
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       this.sheetId = id;
@@ -237,10 +254,22 @@ export class SheetEditorComponent implements OnInit {
           this.showCustomChords = this.customChords.length > 0;
           this.content = sheet.content;
           this.nashvilleContent = sheet.nashvilleContent || '';
+          this.loaded = true;
         },
         error: () => this.error.set('Failed to load sheet'),
       });
     }
+  }
+
+  ngOnDestroy() {
+    this.autoSaveSub?.unsubscribe();
+  }
+
+  onFieldChange() {
+    if (!this.isEditing() || !this.loaded) return;
+    this.saveStatus.set('unsaved');
+    this.saveStatusText.set('Unsaved changes');
+    this.autoSave$.next();
   }
 
   getTuningLabel(name: TuningName): string {
@@ -257,11 +286,46 @@ export class SheetEditorComponent implements OnInit {
 
   removeCustomChord(index: number) {
     this.customChords.splice(index, 1);
+    this.onFieldChange();
   }
 
   onCustomChordsChange() {
     // Trigger change detection
     this.customChords = [...this.customChords];
+    this.onFieldChange();
+  }
+
+  private buildDto() {
+    const validCustomChords = this.customChords.filter(c => c.name.trim());
+    return {
+      title: this.title,
+      artist: this.artist || undefined,
+      key: this.key || undefined,
+      capo: this.capo || undefined,
+      tuning: this.tuning !== 'standard' ? this.tuning : undefined,
+      chordsAsShapes: this.chordsAsShapes,
+      customChords: validCustomChords.length > 0 ? validCustomChords : undefined,
+      content: this.content,
+      nashvilleContent: this.nashvilleContent || undefined,
+    };
+  }
+
+  private autoSave() {
+    if (!this.title.trim()) return;
+
+    this.saveStatus.set('saving');
+    this.saveStatusText.set('Saving...');
+
+    this.sheetService.update(this.sheetId, this.buildDto()).subscribe({
+      next: () => {
+        this.saveStatus.set('saved');
+        this.saveStatusText.set('Saved');
+      },
+      error: () => {
+        this.saveStatus.set('error');
+        this.saveStatusText.set('Save failed');
+      },
+    });
   }
 
   save() {
@@ -273,26 +337,7 @@ export class SheetEditorComponent implements OnInit {
     this.saving.set(true);
     this.error.set('');
 
-    // Filter out custom chords with no name
-    const validCustomChords = this.customChords.filter(c => c.name.trim());
-
-    const dto = {
-      title: this.title,
-      artist: this.artist || undefined,
-      key: this.key || undefined,
-      capo: this.capo || undefined,
-      tuning: this.tuning !== 'standard' ? this.tuning : undefined,
-      chordsAsShapes: this.chordsAsShapes,
-      customChords: validCustomChords.length > 0 ? validCustomChords : undefined,
-      content: this.content,
-      nashvilleContent: this.nashvilleContent || undefined,
-    };
-
-    const request = this.isEditing()
-      ? this.sheetService.update(this.sheetId, dto)
-      : this.sheetService.create(dto);
-
-    request.subscribe({
+    this.sheetService.create(this.buildDto()).subscribe({
       next: (sheet) => {
         this.router.navigate(['/sheets', sheet.id]);
       },
