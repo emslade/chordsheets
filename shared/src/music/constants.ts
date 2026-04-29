@@ -47,6 +47,24 @@ export const INTERVAL_TO_DEGREE: Record<number, string> = {
   11: 'VII',
 };
 
+// Same idea but rooted in natural minor: III, VI, VII are the natural
+// scale degrees at intervals 3, 8, 10. Chromatic alterations are written
+// as raised forms (#III, #VI, #VII).
+export const INTERVAL_TO_DEGREE_MINOR: Record<number, string> = {
+  0: 'I',
+  1: 'bII',
+  2: 'II',
+  3: 'III',
+  4: '#III',
+  5: 'IV',
+  6: '#IV',
+  7: 'V',
+  8: 'VI',
+  9: '#VI',
+  10: 'VII',
+  11: '#VII',
+};
+
 // Reverse map: scale degree (uppercase) to semitone interval
 export const DEGREE_TO_INTERVAL: Record<string, number> = {
   'I': 0,

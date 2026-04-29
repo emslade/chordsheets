@@ -7,6 +7,7 @@ import {
   MAJOR_SCALE_INTERVALS,
   MINOR_SCALE_INTERVALS,
   INTERVAL_TO_DEGREE,
+  INTERVAL_TO_DEGREE_MINOR,
   DEGREE_TO_INTERVAL,
 } from './constants.js';
 
@@ -98,10 +99,13 @@ export function renderChord(chord: Chord, useFlats: boolean): string {
 
 /**
  * Convert a chord to Roman numeral notation given a key.
+ * When `keyIsMinor` is true, chord intervals are read against the natural
+ * minor scale (so F in Am → VI, not bVI).
  */
-export function toRomanNumeral(chord: Chord, keyRoot: Note): string {
+export function toRomanNumeral(chord: Chord, keyRoot: Note, keyIsMinor = false): string {
+  const map = keyIsMinor ? INTERVAL_TO_DEGREE_MINOR : INTERVAL_TO_DEGREE;
   const interval = ((chord.root - keyRoot) % 12 + 12) % 12;
-  let numeral = INTERVAL_TO_DEGREE[interval] || '?';
+  let numeral = map[interval] || '?';
 
   // Determine if chord is minor-like
   const isMinor = chord.quality.startsWith('m') && !chord.quality.startsWith('maj');
@@ -136,7 +140,7 @@ export function toRomanNumeral(chord: Chord, keyRoot: Note): string {
   // Handle bass note as Roman numeral too
   if (chord.bass !== undefined) {
     const bassInterval = ((chord.bass - keyRoot) % 12 + 12) % 12;
-    let bassNumeral = INTERVAL_TO_DEGREE[bassInterval] || '?';
+    let bassNumeral = map[bassInterval] || '?';
     numeral += '/' + bassNumeral;
   }
 

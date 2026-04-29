@@ -89,7 +89,7 @@ export class ChordLineComponent {
         const transposed = transpose(segment.chord, this.semitones);
         let chordText: string;
         if (this.mode === 'roman' && this.keyRoot !== null) {
-          chordText = toRomanNumeral(transposed, this.keyRoot);
+          chordText = toRomanNumeral(transposed, this.keyRoot, this.keyString.endsWith('m'));
         } else {
           const useFlats = this.keyString
             ? shouldUseFlatsForKey(this.keyString)
