@@ -5,6 +5,7 @@ import { ChordLineComponent } from '../../../shared/components/chord-line/chord-
 import { NashvilleGridComponent } from '../../../shared/components/nashville-grid/nashville-grid.component';
 import { parseContent, parseKey, getScaleInfo, parseNashvilleContent } from '@shared/music/theory';
 import { TUNINGS, getUniformTuningOffset, isUniformTuning } from '@shared/music/tunings';
+import { computeDisplayKeyRoot } from '@shared/music/display';
 import type { ChordSheet, Note, TuningName } from '@shared/types/index';
 
 @Component({
@@ -232,19 +233,13 @@ export class SheetViewerComponent implements OnInit {
     if (!s?.key) return null;
     const root = parseKey(s.key);
     if (root === null) return null;
-
-    // When chordsAsShapes is true and we're NOT showing sounding pitch,
-    // the chords are in "shape space" but the key is the sounding key.
-    // Shift the key into shape space so Roman numerals align correctly.
-    // e.g. Key=A, half-step-down: shape space key = Bb, so Bb shape = I
-    if (s.chordsAsShapes && !this.showSounding() && s.tuning && s.tuning !== 'standard') {
-      const offset = getUniformTuningOffset(s.tuning as TuningName);
-      if (offset !== null && offset !== 0) {
-        return ((root - offset) % 12 + 12) % 12;
-      }
-    }
-
-    return root;
+    return computeDisplayKeyRoot({
+      keyRoot: root,
+      showSounding: this.showSounding(),
+      chordsAsShapes: !!s.chordsAsShapes,
+      capo: s.capo,
+      tuning: (s.tuning as TuningName | undefined) ?? null,
+    });
   });
 
   tuningLabel = computed(() => {
