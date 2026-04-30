@@ -20,6 +20,7 @@ export interface ChordSheet {
   customChords?: CustomChordDiagram[];
   content: string;
   nashvilleContent?: string;
+  isComplete?: boolean;
   shareToken?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,7 @@ export interface CreateChordSheetDto {
   customChords?: CustomChordDiagram[];
   content: string;
   nashvilleContent?: string;
+  isComplete?: boolean;
 }
 
 export interface UpdateChordSheetDto {
@@ -47,6 +49,7 @@ export interface UpdateChordSheetDto {
   customChords?: CustomChordDiagram[] | null;
   content?: string;
   nashvilleContent?: string | null;
+  isComplete?: boolean;
 }
 
 export interface RegisterDto {

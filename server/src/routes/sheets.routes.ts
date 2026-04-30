@@ -74,6 +74,7 @@ const createSchema = z.object({
   customChords: z.array(customChordSchema).optional(),
   content: z.string(),
   nashvilleContent: z.string().optional(),
+  isComplete: z.boolean().optional(),
 });
 
 const updateSchema = z.object({
@@ -86,6 +87,7 @@ const updateSchema = z.object({
   customChords: z.array(customChordSchema).optional().nullable(),
   content: z.string().optional(),
   nashvilleContent: z.string().optional().nullable(),
+  isComplete: z.boolean().optional(),
 });
 
 function mapRow(row: any) {
@@ -101,6 +103,7 @@ function mapRow(row: any) {
     customChords: row.custom_chords,
     content: row.content,
     nashvilleContent: row.nashville_content,
+    isComplete: row.is_complete ?? false,
     shareToken: row.share_token || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -137,10 +140,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
     const body = createSchema.parse(req.body);
 
     const result = await pool.query(
-      `INSERT INTO chord_sheets (user_id, title, artist, key, capo, tuning, chords_as_shapes, custom_chords, content, nashville_content)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO chord_sheets (user_id, title, artist, key, capo, tuning, chords_as_shapes, custom_chords, content, nashville_content, is_complete)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [req.userId, body.title, body.artist || null, body.key || null, body.capo ?? null, body.tuning || null, body.chordsAsShapes ?? true, body.customChords ? JSON.stringify(body.customChords) : null, body.content, body.nashvilleContent || null]
+      [req.userId, body.title, body.artist || null, body.key || null, body.capo ?? null, body.tuning || null, body.chordsAsShapes ?? true, body.customChords ? JSON.stringify(body.customChords) : null, body.content, body.nashvilleContent || null, body.isComplete ?? false]
     );
 
     res.status(201).json(mapRow(result.rows[0]));
@@ -198,6 +201,10 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
     if (body.nashvilleContent !== undefined) {
       fields.push(`nashville_content = $${paramIndex++}`);
       values.push(body.nashvilleContent);
+    }
+    if (body.isComplete !== undefined) {
+      fields.push(`is_complete = $${paramIndex++}`);
+      values.push(body.isComplete);
     }
 
     if (fields.length === 0) {

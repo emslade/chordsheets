@@ -101,6 +101,11 @@ import { AuthService } from '../../../core/services/auth.service';
               <span class="text-gray-400">(e.g. write D for a D shape even though it sounds as {{ shapesExampleNote }})</span>
             </label>
           }
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" [(ngModel)]="isComplete" (ngModelChange)="onFieldChange()" name="isComplete"
+              class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            Mark as complete
+          </label>
           <!-- Custom Chord Diagrams -->
           <div>
             <button (click)="showCustomChords = !showCustomChords" type="button"
@@ -201,6 +206,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   showCustomChords = false;
   content = '';
   nashvilleContent = '';
+  isComplete = false;
   editorTab: 'lyrics' | 'nashville' = 'lyrics';
   error = signal('');
   saving = signal(false);
@@ -263,6 +269,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
           this.showCustomChords = this.customChords.length > 0;
           this.content = sheet.content;
           this.nashvilleContent = sheet.nashvilleContent || '';
+          this.isComplete = sheet.isComplete ?? false;
           this.loaded = true;
           if (sheet.shareToken) {
             this.connectPresence(id);
@@ -330,6 +337,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       customChords: validCustomChords.length > 0 ? validCustomChords : undefined,
       content: this.content,
       nashvilleContent: this.nashvilleContent || undefined,
+      isComplete: this.isComplete,
     };
   }
 

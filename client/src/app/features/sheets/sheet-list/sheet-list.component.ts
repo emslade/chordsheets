@@ -27,7 +27,7 @@ type SortField = 'title' | 'artist' | 'updatedAt';
           <p class="text-sm">Create your first chord sheet to get started.</p>
         </div>
       } @else {
-        <div class="flex items-center gap-2 mb-4 text-sm">
+        <div class="flex items-center gap-2 mb-4 text-sm flex-wrap">
           <span class="text-gray-500">Sort by:</span>
           <button (click)="toggleSort('title')"
             [class]="sortField() === 'title' ? 'px-3 py-1 rounded-md font-medium bg-indigo-100 text-indigo-700' : 'px-3 py-1 rounded-md text-gray-600 hover:bg-gray-100'">
@@ -41,18 +41,34 @@ type SortField = 'title' | 'artist' | 'updatedAt';
             [class]="sortField() === 'updatedAt' ? 'px-3 py-1 rounded-md font-medium bg-indigo-100 text-indigo-700' : 'px-3 py-1 rounded-md text-gray-600 hover:bg-gray-100'">
             Recent {{ sortField() === 'updatedAt' ? (sortAsc() ? '↑' : '↓') : '' }}
           </button>
+          <span class="ml-auto flex items-center gap-2">
+            <label class="flex items-center gap-1.5 text-gray-600 cursor-pointer">
+              <input type="checkbox" [checked]="hideComplete()" (change)="toggleHideComplete()"
+                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              Hide complete
+              @if (completeCount() > 0) {
+                <span class="text-gray-400">({{ completeCount() }})</span>
+              }
+            </label>
+          </span>
         </div>
 
         <div class="flex flex-col gap-2">
-          @for (sheet of sortedSheets(); track sheet.id) {
+          @for (sheet of visibleSheets(); track sheet.id) {
             <a [routerLink]="['/sheets', sheet.id]"
-              class="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
+              class="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all"
+              [class.opacity-60]="sheet.isComplete">
               <div class="flex-1 min-w-0">
                 <h2 class="font-semibold text-gray-900 truncate">{{ sheet.title }}</h2>
                 @if (sheet.artist) {
                   <p class="text-sm text-gray-500 mt-0.5">{{ sheet.artist }}</p>
                 }
               </div>
+              @if (sheet.isComplete) {
+                <span class="shrink-0 px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded">
+                  Complete
+                </span>
+              }
               @if (sheet.key) {
                 <span class="shrink-0 px-2 py-0.5 text-xs bg-indigo-50 text-indigo-700 rounded">
                   Key: {{ sheet.key }}
@@ -70,6 +86,9 @@ export class SheetListComponent implements OnInit {
   loading = signal(true);
   sortField = signal<SortField>('updatedAt');
   sortAsc = signal(false);
+  hideComplete = signal(this.loadHideComplete());
+
+  completeCount = computed(() => this.sheets().filter(s => s.isComplete).length);
 
   sortedSheets = computed(() => {
     const field = this.sortField();
@@ -85,6 +104,11 @@ export class SheetListComponent implements OnInit {
     });
   });
 
+  visibleSheets = computed(() => {
+    const sheets = this.sortedSheets();
+    return this.hideComplete() ? sheets.filter(s => !s.isComplete) : sheets;
+  });
+
   constructor(private sheetService: ChordSheetService) {}
 
   toggleSort(field: SortField) {
@@ -93,6 +117,22 @@ export class SheetListComponent implements OnInit {
     } else {
       this.sortField.set(field);
       this.sortAsc.set(field !== 'updatedAt');
+    }
+  }
+
+  toggleHideComplete() {
+    const next = !this.hideComplete();
+    this.hideComplete.set(next);
+    try {
+      localStorage.setItem('sheetList.hideComplete', next ? '1' : '0');
+    } catch {}
+  }
+
+  private loadHideComplete(): boolean {
+    try {
+      return localStorage.getItem('sheetList.hideComplete') === '1';
+    } catch {
+      return false;
     }
   }
 
