@@ -251,11 +251,11 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
   res.status(204).send();
 });
 
-// Enable sharing (generate token)
+// Enable sharing (generate token if not already set)
 router.post('/:id/share', async (req: AuthRequest, res: Response) => {
   const token = crypto.randomBytes(16).toString('hex');
   const result = await pool.query(
-    'UPDATE chord_sheets SET share_token = $1 WHERE id = $2 AND user_id = $3 RETURNING *',
+    'UPDATE chord_sheets SET share_token = COALESCE(share_token, $1) WHERE id = $2 AND user_id = $3 RETURNING *',
     [token, req.params['id'], req.userId]
   );
 
