@@ -56,8 +56,7 @@ type SortField = 'title' | 'artist' | 'updatedAt';
         <div class="flex flex-col gap-2">
           @for (sheet of visibleSheets(); track sheet.id) {
             <a [routerLink]="['/sheets', sheet.id]"
-              class="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all"
-              [class.opacity-60]="sheet.isComplete">
+              class="flex items-center gap-4 p-4 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
               <div class="flex-1 min-w-0">
                 <h2 class="font-semibold text-gray-900 truncate">{{ sheet.title }}</h2>
                 @if (sheet.artist) {
