@@ -28,21 +28,21 @@ export interface ChordSheet {
 
 export interface CreateChordSheetDto {
   title: string;
-  artist?: string;
-  key?: string;
-  capo?: number;
-  tuning?: TuningName;
+  artist?: string | null;
+  key?: string | null;
+  capo?: number | null;
+  tuning?: TuningName | null;
   chordsAsShapes?: boolean;
-  customChords?: CustomChordDiagram[];
+  customChords?: CustomChordDiagram[] | null;
   content: string;
-  nashvilleContent?: string;
+  nashvilleContent?: string | null;
   isComplete?: boolean;
 }
 
 export interface UpdateChordSheetDto {
   title?: string;
-  artist?: string;
-  key?: string;
+  artist?: string | null;
+  key?: string | null;
   capo?: number | null;
   tuning?: TuningName | null;
   chordsAsShapes?: boolean | null;

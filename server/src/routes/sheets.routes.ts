@@ -66,14 +66,14 @@ const customChordSchema = z.object({
 
 const createSchema = z.object({
   title: z.string().min(1).max(255),
-  artist: z.string().max(255).optional(),
-  key: z.string().max(10).optional(),
-  capo: z.number().int().min(0).max(12).optional(),
-  tuning: tuningEnum.optional(),
+  artist: z.string().max(255).optional().nullable(),
+  key: z.string().max(10).optional().nullable(),
+  capo: z.number().int().min(0).max(12).optional().nullable(),
+  tuning: tuningEnum.optional().nullable(),
   chordsAsShapes: z.boolean().optional(),
-  customChords: z.array(customChordSchema).optional(),
+  customChords: z.array(customChordSchema).optional().nullable(),
   content: z.string(),
-  nashvilleContent: z.string().optional(),
+  nashvilleContent: z.string().optional().nullable(),
   isComplete: z.boolean().optional(),
 });
 

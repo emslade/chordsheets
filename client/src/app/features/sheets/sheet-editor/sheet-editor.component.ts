@@ -327,16 +327,18 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   private buildDto() {
     const validCustomChords = this.customChords.filter(c => c.name.trim());
+    // Cleared fields must be sent as null, not undefined: undefined is dropped
+    // during JSON serialisation and the server would leave the old value in place.
     return {
       title: this.title,
-      artist: this.artist || undefined,
-      key: this.key || undefined,
-      capo: this.capo || undefined,
-      tuning: this.tuning !== 'standard' ? this.tuning : undefined,
+      artist: this.artist || null,
+      key: this.key || null,
+      capo: this.capo || null,
+      tuning: this.tuning !== 'standard' ? this.tuning : null,
       chordsAsShapes: this.chordsAsShapes,
-      customChords: validCustomChords.length > 0 ? validCustomChords : undefined,
+      customChords: validCustomChords.length > 0 ? validCustomChords : null,
       content: this.content,
-      nashvilleContent: this.nashvilleContent || undefined,
+      nashvilleContent: this.nashvilleContent || null,
       isComplete: this.isComplete,
     };
   }
